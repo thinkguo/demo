@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1.0">
+	<title>2048 game</title>
+	<style>
+		*{
+			padding: 0;
+			margin: 0;
+		}
+		body,
+		html{
+			height: 100%;
+		}
+		html{
+			font-size: 53px;
+		}
+		body{
+			background: radial-gradient(at center 36%,#555,#000);
+			/*overflow: hidden;*/
+		}
+		.layout{
+			height: 100%;
+			/*max-width: 640px;*/
+			/*min-width: 320px;*/
+			box-sizing:border-box;
+		}
+		.name{
+			position: absolute; 
+			text-align: center;
+			width: 5rem;
+			top: 45%;
+			left: 0;
+			margin-top: -2.8rem;
+		}
+		.name>h1{
+			/*transition: all 1s 0.3s ease;*/
+			color: yellow;
+			opacity: 0.8;
+			font-size: 0.4rem;
+		}
+		@keyframes title{
+			0%{}
+			10%{
+				opacity:0.5;
+				transform: rotate3d(0,1,0,-2turn) scale(1.5);
+			}
+			20%{
+				opacity:1;
+				transform: rotate3d(0,0,0,0) scale(1);
+			}
+			100%{}
+		}
+		.animation{
+			animation: ease 20s 0.5s title infinite;
+		}
+		.box{
+			width: 4rem;
+			height: 4rem;
+			background-color: grey;
+			border: 0.1rem solid grey;
+			/*margin: 0 auto;*/
+			position: absolute;
+			left: .4rem;
+			top: 45%;
+			margin-top: -2.1rem;
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+			align-content: space-between;
+		}
+		li{
+			width: 24%;
+			height: 24%;
+			list-style: none;
+			text-align: center;
+			font: bolder .5rem/1rem 'microsoft yahei';
+			color: #555;
+			transition: all 0.5s 0s ease-out;
+		}
+
+		.info{
+			display: block;
+			width: 5rem;
+			/*margin: 0 auto;*/
+			position: absolute;
+			left: 0;
+			top: 45%;
+			margin-top: 2.4rem;
+			text-align: left;
+			font: bolder .2rem/.3rem 'microsoft yahei';
+			color: silver;
+			box-sizing:border-box;
+			padding:0 .5rem;
+		}
+		.info span{
+			display: block;
+		}
+		.record{
+			color: orange;
+		}
+		.clearRecord{
+			color: black;
+			position: absolute;
+			right: .5rem;
+			top: 0;
+			padding: 3px 10px;
+			font: bolder .2rem/.3rem 'microsoft yahei';
+		}
+	</style>
+</head>
+<body>
+	<div class="layout">
+
+		<div class="name animation"><h1>2048 by GL</h1></div>
+		<div class="box">
+			<li class="grid1"></li>
+			<li class="grid2"></li>
+			<li class="grid3"></li>
+			<li class="grid4"></li>
+			<li class="grid5"></li>
+			<li class="grid6"></li>
+			<li class="grid7"></li>
+			<li class="grid8"></li>
+			<li class="grid9"></li>
+			<li class="grid10"></li>
+			<li class="grid11"></li>
+			<li class="grid12"></li>
+			<li class="grid13"></li>
+			<li class="grid14"></li>
+			<li class="grid15"></li>
+			<li class="grid16"></li>
+		</div>
+		<div class="info">
+			<span >controls: ↑/↓/←/→</span>
+			<span class="score">score: 0</span>
+			<span class="player">player: gl</span>
+			<span class="record">record: none</span>
+			<button class="clearRecord">clearRecord</button>
+		</div>
+			
+	</div>
+	<script>
+		var box = document.querySelector('.box'), //父盒子
+			scoreText = document.querySelector('.score'), //得分标签
+			score = 0, //得分
+			recordText = document.querySelector('.record'), //纪录标签
+			record = 0, //纪录
+			recordFlag = false, //是否处于新纪录中
+			recordBy = 'gl',
+			playerText = document.querySelector('.player'), //玩家标签
+			player = 'gl',
+			clearBtn = document.querySelector('.clearRecord'),
+			N = 4, //4*4游戏，行数和列数
+			p = [
+				[],
+				[],
+				[],
+				[]
+			], //二维数组，存储16个小格子的上的数字
+			previous = [
+				[],
+				[],
+				[],
+				[]
+			], //小格子的上数字的备份，用来判断是否需要生成下一个随机的2
+			endflag = true, //游戏结束标志，默认为true
+			colorMap = { //小方格颜色对象
+				0: 'rgb(255, 255, 255)',
+				2: 'rgb(255, 255, 153)',
+				4: 'rgb(255, 204, 102)',
+				8: 'rgb(255, 153, 51)',
+				16: 'rgb(255, 102, 0)',
+				32: 'rgb(255, 51, 0)',
+				64: 'rgb(255, 0, 0)',
+				128: 'rgb(255, 100, 0)',
+				256: 'rgb(255, 200, 0)',
+				512: 'rgb(255, 250, 0)',
+				1024: 'rgb(200, 250, 0)',
+				2048: 'rgb(150, 250, 0)',
+				4096: 'rgb(100, 250, 0)',
+				8192: 'rgb(50, 250, 0)',
+				16384: 'rgb(0, 250, 0)',
+				32768: 'rgb(0, 255, 0)',
+				65536: 'rgb(0, 0, 0)'
+			};
+
+		//通过屏幕尺寸设置html的字体尺寸,rem布局模式
+		var screenWidth=window.innerWidth;
+		document.documentElement.style.fontSize=screenWidth/5+'px';
+		window.onresize=function(){
+			screenWidth=window.innerWidth;
+			document.documentElement.style.fontSize=screenWidth/5+'px';
+			// var gridWidth=document.querySelector('.grid1').offsetWidth;
+			// var gridHeight=document.querySelector('.grid1').offsetHeight;
+			// console.log('gridWidth:'+gridWidth+' gridHeight:'+gridHeight);
+		}
+
+		//给按钮绑定事件
+		tap(clearBtn,function(){
+			record=0;
+			recordBy='anonymous';
+			window.localStorage.setItem('record',record);
+			window.localStorage.setItem('recordBy',recordBy);
+			recordText.innerHTML = 'record: ' + record + ' by ' + recordBy; 
+		});
+
+		//初始化游戏
+		initial(p);
+
+		//载入纪录
+		record = window.localStorage.getItem('record');
+		recordBy = window.localStorage.getItem('recordBy');
+		recordText.innerHTML = 'record: ' + record + ' by ' + recordBy; // 显示纪录
+
+		//输入玩家姓名
+		player = prompt('请输入玩家名称,以确保破纪录时榜上有名！')||'anonymous';
+		playerText.innerHTML = 'player: ' + player;
+
+		//启动游戏
+		start(p);
+
+		//监听touch事件
+		var startX=0,
+		startY=0,
+		endX=0,
+		endY=0,
+		disX=0,
+		disY=0,
+		argu=0,
+		isMove=false;
+		document.addEventListener('touchstart',function(e){
+			// console.log('start');
+			startX=e.touches[0].clientX;
+			startY=e.touches[0].clientY;
+		},false);
+		document.addEventListener('touchmove',function(e){
+			// console.log('move');
+			e.preventDefault();
+			isMove=true;
+		},false);
+		window.addEventListener('touchend',function(e){
+			// console.log('end');
+			endX=e.changedTouches[0].clientX;
+			endY=e.changedTouches[0].clientY;
+			disX=endX-startX;
+			disY=endY-startY;
+			if(isMove){
+				argu=Math.abs(disX)>=Math.abs(disY)
+				?(disX>0?3:1)
+				:(disY>0?4:2);
+
+				tapMove(argu);
+			}
+			isMove=false;
+		},false);
+
+		//触摸事件处理函数
+		function tapMove(argu){//1← 2↑ 3→ 4↓
+			switch (argu) {
+				case 1: //left
+					// console.log('left');
+					left(p);
+					judge(p);
+					if (endflag) {
+						initial(p);
+						start(p);
+						break;
+					}
+					if (!myEquals(p, previous)) {
+						randomNext(p);
+					}
+					display(p);
+					break;
+				case 2: //up
+					// console.log('up');
+					up(p);
+					judge(p);
+					if (endflag) {
+						initial(p);
+						start(p);
+						break;
+					}
+					if (!myEquals(p, previous)) {
+						randomNext(p);
+					}
+					display(p);
+					break;
+				case 3: //right
+					// console.log('right');
+					right(p);
+					judge(p);
+					if (endflag) {
+						initial(p);
+						start(p);
+						break;
+					}
+					if (!myEquals(p, previous)) {
+						randomNext(p);
+					}
+					display(p);
+					break;
+				case 4: //down
+					// console.log('down');
+					down(p);
+					judge(p);
+					if (endflag) {
+						initial(p);
+						start(p);
+						break;
+					}
+					if (!myEquals(p, previous)) {
+						randomNext(p);
+					}
+					display(p);
+					break;
+			}
+			// console.log('p ==> '+p.toString());
+			// console.log('previous ==> '+previous.toString());
+		}
+
+		//初始化
+		function initial(a) {
+			for (var i = 0; i < N; i++) {
+				for (var j = 0; j < N; j++) {
+					a[i][j] = 0;
+					previous[i][j] = 0;
+				}
+			}
+			score = 0;
+			recordFlag = false;
+		}
+
+		//游戏启动
+		function start(a) {
+			endflag = false;
+			randomNext(a);
+			randomNext(a);
+			display(a);
+		}
+
+		//在随机位置生成一个2
+		function randomNext(a) {
+			var row, vol;
+			var flag = false;
+			while (!flag) {
+				row = parseInt(Math.random() * N);
+				vol = parseInt(Math.random() * N);
+				if (a[row][vol] == 0) {
+					a[row][vol] = 2;
+					flag = true;
+				}
+			}
+		}
+
+		//判断游戏是否结束，a:数组任何一个元素都非零 b:数组元素与相邻元素都不一样
+		function judge(a) {
+			var count = 0; //零元素计数
+			var flag = true; //数组元素与相邻元素均不一样标志,默认为true
+			for (var i = 0; i < N; i++) {
+				for (var j = 0; j < N; j++) {
+					if (a[i][j] == 0) {
+						++count;
+					}
+					if (true) { //判断是否与相邻元素不一样
+						flag = i > 0 ? flag && (a[i][j] != a[i - 1][j]) : flag; //与上边相邻元素相比
+						flag = i < N - 1 ? flag && (a[i][j] != a[i + 1][j]) : flag; //与下边相邻元素相比
+						flag = j > 0 ? flag && (a[i][j] != a[i][j - 1]) : flag; //与左边相邻元素相比
+						flag = j < N - 1 ? flag && (a[i][j] != a[i][j + 1]) : flag; //与右边相邻元素相比
+					}
+				}
+			}
+			if (count == 0 && flag) {
+				if (recordFlag) {
+					window.localStorage.setItem('record', record);
+					window.localStorage.setItem('recordBy', recordBy);
+				}
+
+				var conf = confirm('game over,kid! \n try again!'); //游戏结束
+				endflag = conf;
+			}
+		}
+
+		//判断俩数组内容是否完全一致
+		function myEquals(a, b) {
+			var flag = true;
+			for (var i = 0; i < a.length; i++) {
+				for (var j = 0; j < a[i].length; j++) {
+					if (a[i][j] != b[i][j]) {
+						flag = false;
+						return flag;
+					}
+				}
+			}
+			return flag;
+		}
+		// console.log(myEquals(p, previous));
+
+		//展示函数，将数组的元素值填入对应的方格标签
+		function display(a) {
+			// for (var i = 0; i < N; i++) {
+			// 	for (var j = 0; j < N; j++) {
+			// 		document.write(a[i][j] + "\t");
+			// 		previous[i][j] = a[i][j];
+			// 	}
+			// 	document.write('<br>');
+			// }
+			for (var i = 0; i < N; i++) { // 将数组元素值写入标签，并变色
+				for (var j = 0; j < N; j++) {
+					handle(i, j, a);
+				}
+			}
+			scoreText.innerHTML = 'score: ' + score; // 显示分数
+			if (score >= record && !recordFlag) { //如果破纪录了
+				recordFlag = true;
+				alert('congratulations! \n you are making a new record! \n make it higher!')
+			}
+			if (recordFlag) {
+				record = score;
+				recordBy = player;
+				recordText.innerHTML = 'record: ' + record + ' by ' + recordBy; // 显示纪录
+			}
+
+			//保存当前数组至备份数组
+			for (var i = 0; i < a.length; i++) {
+				for (var j = 0; j < a[i].length; j++) {
+					previous[i][j] = a[i][j];
+				}
+			}
+		}
+
+		function handle(i, j, a) { //根据行列号，将数组元素值写入标签,并改变颜色
+			box.children[i * N + j].innerHTML = a[i][j] == 0 ? '' : a[i][j];
+			box.children[i * N + j].style.backgroundColor = colorMap[a[i][j]] || 'black'; //设置颜色
+		}
+
+
+		//left
+		function left(a) {
+			for (var i = 0; i < N; i++) { // 遍历每一行
+				var count = 0;
+				for (var j = 0; j < N - 1 - count; j++) { // 遍历前三列
+					if (a[i][j] == 0) { // 排除空白格子s
+						for (var k = j; k < N - 1 - count; k++) {
+							a[i][k] = a[i][k + 1];
+						}
+						a[i][N - 1 - count] = 0;
+						--j;
+						++count;
+					} else {
+						if (a[i][j] == a[i][j + 1]) {
+							a[i][j] *= 2;
+							score += a[i][j]; //加分
+							for (var k = j + 1; k < N - 1 - count; k++) {
+								a[i][k] = a[i][k + 1];
+							}
+							a[i][N - 1 - count] = 0;
+						}
+					}
+				}
+				for (var j = 0; j < N - 1; j++) {
+					if (a[i][j] != 0 && a[i][j] == a[i][j + 1]) { //相邻的非零元素合并到一起，元素值加倍
+						a[i][j] *= 2;
+						score += a[i][j]; //加分
+						for (var k = j + 1; k < N - 1 - count; k++) {
+							a[i][k] = a[i][k + 1];
+						}
+						a[i][N - 1 - count] = 0;
+						break;
+					}
+				}
+			}
+		}
+
+		function up(a) {
+			for (var j = 0; j < N; j++) { // 
+				var count = 0;
+				for (var i = 0; i < N - 1 - count; i++) { // 
+					if (a[i][j] == 0) { // 
+						for (var k = i; k < N - 1 - count; k++) {
+							a[k][j] = a[k + 1][j];
+						}
+						a[N - 1 - count][j] = 0;
+						--i;
+						++count;
+					} else {
+						if (a[i][j] == a[i + 1][j]) {
+							a[i][j] *= 2;
+							score += a[i][j];
+							for (var k = i + 1; k < N - 1 - count; k++) {
+								a[k][j] = a[k + 1][j];
+							}
+							a[N - 1 - count][j] = 0;
+						}
+					}
+				}
+				for (var i = 0; i < N - 1; i++) {
+					if (a[i][j] != 0 && a[i][j] == a[i + 1][j]) { //相邻的非零元素合并到一起，元素值加倍
+						a[i][j] *= 2;
+						score += a[i][j];
+						for (var k = i + 1; k < N - 1 - count; k++) {
+							a[k][j] = a[k + 1][j];
+						}
+						a[N - 1 - count][j] = 0;
+						break;
+					}
+				}
+			}
+		}
+
+		function down(a) {
+			for (var j = 0; j < N; j++) { // 
+				var count = 0;
+				for (var i = N - 1; i > count; i--) {
+					if (a[i][j] == 0) { // 
+						for (var k = i; k > count; k--) {
+							a[k][j] = a[k - 1][j];
+						}
+						a[count][j] = 0;
+						++i;
+						++count;
+					} else {
+						if (a[i][j] == a[i - 1][j]) {
+							a[i][j] *= 2;
+							score += a[i][j];
+							for (var k = i - 1; k > count; k--) {
+								a[k][j] = a[k - 1][j];
+							}
+							a[count][j] = 0;
+						}
+					}
+				}
+				for (var i = N - 1; i > 0; i--) {
+					if (a[i][j] != 0 && a[i][j] == a[i - 1][j]) { //相邻的非零元素合并到一起，元素值加倍
+						a[i][j] *= 2;
+						score += a[i][j];
+						for (var k = i - 1; k > count; k--) {
+							a[k][j] = a[k - 1][j];
+						}
+						a[count][j] = 0;
+						break;
+					}
+				}
+			}
+		}
+
+		function right(a) {
+			for (var i = 0; i < N; i++) { // 
+				var count = 0;
+				for (var j = N - 1; j > count; j--) { // 
+					if (a[i][j] == 0) { // 
+						for (var k = j; k > count; k--) {
+							a[i][k] = a[i][k - 1];
+						}
+						a[i][count] = 0;
+						++j;
+						++count;
+					} else {
+						if (a[i][j] == a[i][j - 1]) {
+							a[i][j] *= 2;
+							score += a[i][j];
+							for (var k = j - 1; k > count; k--) {
+								a[i][k] = a[i][k - 1];
+							}
+							a[i][count] = 0;
+						}
+					}
+				}
+				for (var j = N - 1; j > 0; j--) {
+					if (a[i][j] != 0 && a[i][j] == a[i][j - 1]) { //相邻的非零元素合并到一起，元素值加倍
+						a[i][j] *= 2;
+						score += a[i][j];
+						for (var k = j - 1; k > count; k--) {
+							a[i][k] = a[i][k - 1];
+						}
+						a[i][count] = 0;
+						break;
+					}
+				}
+			}
+		}
+
+		/*封装tap*/
+		function tap(dom, callback) {
+			/*
+			 * 要求  没有触发 touchmove 事件
+			 *       并且响应速度要比click快
+			 */
+			if (dom && typeof dom == 'object') {
+				var isMove = false;
+				var startTime = 0;
+
+				dom.addEventListener('touchstart', function(e) {
+					//console.log('touchstart');
+					console.time('tap'); /*记录tap这个参数现在的时间*/
+					startTime = Date.now();
+				});
+				dom.addEventListener('touchmove', function(e) {
+					//console.log('touchmove');
+					isMove = true;
+
+				});
+				dom.addEventListener('touchend', function(e) {
+					//console.log('touchend');
+					/* //console.timeEnd('tap')/*/
+					/*!*打印tap这个参数距离上一次记录的时候的时间*!/!*!/!*!/*/
+					/*判读  是否满足tap 的要求  一般要求tap的响应时间150*/
+					if (!isMove && (Date.now() - startTime) < 150) {
+						/*调用 callback*/
+						callback && callback(e);
+					}
+					/*重置 参数*/
+					isMove = false;
+					startTime = 0;
+				});
+			}
+		}
+	</script>
+</body>
+</html>
